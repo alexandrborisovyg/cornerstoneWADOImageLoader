@@ -33,6 +33,12 @@ const config = {
       amd: 'dicom-parser',
       root: 'dicomParser',
     },
+    'dcmjs': {
+      commonjs: 'dcmjs',
+      commonjs2: 'dcmjs',
+      amd: 'dcmjs',
+      root: 'dcmjs',
+    }
   },
   resolve: {
     fallback: {
