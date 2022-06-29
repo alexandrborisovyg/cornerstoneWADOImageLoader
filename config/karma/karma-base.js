@@ -47,6 +47,11 @@ module.exports = function (config) {
         pattern: 'node_modules/dicom-parser/dist/dicomParser.js.map',
         included: false,
       },
+      'node_modules/dcmjs/build/dcmjs.js',
+      {
+        pattern: 'node_modules/dcmjs/build/dcmjs.js.map',
+        included: false,
+      },
       'test/**/*_test.js',
       {
         pattern: `${output.path}/**/*`,
@@ -124,8 +129,8 @@ module.exports = function (config) {
     customLaunchers: {
       ChromeHeadlessNoSandbox: {
         base: 'ChromeHeadless',
-        flags: ['--no-sandbox'],
-      },
+        flags: ['--no-sandbox', '--remote-debugging-port=9333'],
+      }
     },
   });
 };

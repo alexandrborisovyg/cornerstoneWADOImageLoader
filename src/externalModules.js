@@ -5,6 +5,8 @@ let cornerstone;
 
 let dicomParser;
 
+let dcmjs;
+
 const external = {
   set cornerstone(cs) {
     cornerstone = cs;
@@ -41,6 +43,24 @@ const external = {
     }
 
     return dicomParser;
+  },
+
+  set dcmjs(d) {
+    dcmjs = d;
+  },
+
+  get dcmjs() {
+    if (!dcmjs) {
+      if (window && window.dcmjs) {
+        dcmjs = window.dcmjs;
+      } else {
+        throw new Error(
+          'cornerstoneWADOImageLoader requires a copy of dcmjs to work properly. Please add cornerstoneWADOImageLoader.external.dcmjs = dcmjs; to your application.'
+        );
+      }
+    }
+
+    return dcmjs;
   },
 };
 
