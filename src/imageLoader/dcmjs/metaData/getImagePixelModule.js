@@ -1,42 +1,52 @@
-function getLutDescriptor(dataSet, tag) {
-  if (!dataSet.elements[tag] || dataSet.elements[tag].length !== 6) {
+import { getValue } from './utils.js';
+
+function getLutDescriptor(dicomDict, tag) {
+  if (tag && tag[0] === 'x') {
+    tag = tag.substring(1);
+  }
+
+  if (!dicomDict.dict[tag] || dicomDict.dict[tag].length !== 6) {
     return;
   }
 
   return [
-    dataSet.uint16(tag, 0),
-    dataSet.uint16(tag, 1),
-    dataSet.uint16(tag, 2),
+    getValue(dicomDict, tag, 0),
+    getValue(dicomDict, tag, 1),
+    getValue(dicomDict, tag, 2),
   ];
 }
 
-function getLutData(lutDataSet, tag, lutDescriptor) {
+function getLutData(lutDicomDict, tag, lutDescriptor) {
+  if (tag && tag[0] === 'x') {
+    tag = tag.substring(1);
+  }
+
   const lut = [];
-  const lutData = lutDataSet.elements[tag];
+  const lutData = lutDicomDict[tag];
 
   for (let i = 0; i < lutDescriptor[0]; i++) {
     // Output range is always unsigned
     if (lutDescriptor[2] === 16) {
-      lut[i] = lutDataSet.uint16(tag, i);
+      lut[i] = getValue(lutDicomDict, tag, i);
     } else {
-      lut[i] = lutDataSet.byteArray[i + lutData.dataOffset];
+      lut[i] = new Uint8Array(lutData)[i]; // TODO CHECK
     }
   }
 
   return lut;
 }
 
-function populatePaletteColorLut(dataSet, imagePixelModule) {
+function populatePaletteColorLut(dicomDict, imagePixelModule) {
   imagePixelModule.redPaletteColorLookupTableDescriptor = getLutDescriptor(
-    dataSet,
+    dicomDict,
     'x00281101'
   );
   imagePixelModule.greenPaletteColorLookupTableDescriptor = getLutDescriptor(
-    dataSet,
+    dicomDict,
     'x00281102'
   );
   imagePixelModule.bluePaletteColorLookupTableDescriptor = getLutDescriptor(
-    dataSet,
+    dicomDict,
     'x00281103'
   );
 
@@ -59,7 +69,7 @@ function populatePaletteColorLut(dataSet, imagePixelModule) {
   // The value length in bytes should equal the number of entries if bits allocated is 8, and be twice as long if bits allocated is 16.
   const numLutEntries =
     imagePixelModule.redPaletteColorLookupTableDescriptor[0];
-  const lutData = dataSet.elements.x00281201;
+  const lutData = dicomDict.dict['00281201'];
   const lutBitsAllocated = lutData.length === numLutEntries ? 8 : 16;
 
   // If the descriptors do not appear to have the correct values, correct them
@@ -75,55 +85,55 @@ function populatePaletteColorLut(dataSet, imagePixelModule) {
   }
 
   imagePixelModule.redPaletteColorLookupTableData = getLutData(
-    dataSet,
+    dicomDict,
     'x00281201',
     imagePixelModule.redPaletteColorLookupTableDescriptor
   );
   imagePixelModule.greenPaletteColorLookupTableData = getLutData(
-    dataSet,
+    dicomDict,
     'x00281202',
     imagePixelModule.greenPaletteColorLookupTableDescriptor
   );
   imagePixelModule.bluePaletteColorLookupTableData = getLutData(
-    dataSet,
+    dicomDict,
     'x00281203',
     imagePixelModule.bluePaletteColorLookupTableDescriptor
   );
 }
 
-function populateSmallestLargestPixelValues(dataSet, imagePixelModule) {
-  const pixelRepresentation = dataSet.uint16('x00280103');
+function populateSmallestLargestPixelValues(dicomDict, imagePixelModule) {
+  const pixelRepresentation = getValue(dicomDict, 'x00280103');
 
   if (pixelRepresentation === 0) {
-    imagePixelModule.smallestPixelValue = dataSet.uint16('x00280106');
-    imagePixelModule.largestPixelValue = dataSet.uint16('x00280107');
+    imagePixelModule.smallestPixelValue = getValue(dicomDict, 'x00280106');
+    imagePixelModule.largestPixelValue = getValue(dicomDict, 'x00280107');
   } else {
-    imagePixelModule.smallestPixelValue = dataSet.int16('x00280106');
-    imagePixelModule.largestPixelValue = dataSet.int16('x00280107');
+    imagePixelModule.smallestPixelValue = getValue(dicomDict, 'x00280106');
+    imagePixelModule.largestPixelValue = getValue(dicomDict, 'x00280107');
   }
 }
 
-function getImagePixelModule(dataSet) {
+function getImagePixelModule(dicomDict) {
   const imagePixelModule = {
-    samplesPerPixel: dataSet.uint16('x00280002'),
-    photometricInterpretation: dataSet.string('x00280004'),
-    rows: dataSet.uint16('x00280010'),
-    columns: dataSet.uint16('x00280011'),
-    bitsAllocated: dataSet.uint16('x00280100'),
-    bitsStored: dataSet.uint16('x00280101'),
-    highBit: dataSet.uint16('x00280102'),
-    pixelRepresentation: dataSet.uint16('x00280103'),
-    planarConfiguration: dataSet.uint16('x00280006'),
-    pixelAspectRatio: dataSet.string('x00280034'),
+    samplesPerPixel: getValue(dicomDict, 'x00280002'),
+    photometricInterpretation: getValue(dicomDict, 'x00280004'),
+    rows: getValue(dicomDict, 'x00280010'),
+    columns: getValue(dicomDict, 'x00280011'),
+    bitsAllocated: getValue(dicomDict, 'x00280100'),
+    bitsStored: getValue(dicomDict, 'x00280101'),
+    highBit: getValue(dicomDict, 'x00280102'),
+    pixelRepresentation: getValue(dicomDict, 'x00280103'),
+    planarConfiguration: getValue(dicomDict, 'x00280006'),
+    pixelAspectRatio: getValue(dicomDict, 'x00280034'),
   };
 
-  populateSmallestLargestPixelValues(dataSet, imagePixelModule);
+  populateSmallestLargestPixelValues(dicomDict, imagePixelModule);
 
   if (
     imagePixelModule.photometricInterpretation === 'PALETTE COLOR' &&
-    dataSet.elements.x00281101
+    dicomDict.dict['00281101']
   ) {
-    populatePaletteColorLut(dataSet, imagePixelModule);
+    populatePaletteColorLut(dicomDict, imagePixelModule);
   }
 
   return imagePixelModule;

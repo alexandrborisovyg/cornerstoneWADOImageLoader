@@ -1,5 +1,7 @@
-function getLUT(pixelRepresentation, lutDataSet) {
-  let numLUTEntries = lutDataSet.uint16('x00283002', 0);
+import { getValue } from './utils.js';
+
+function getLUT(pixelRepresentation, lutDicomDict) {
+  let numLUTEntries = getValue(lutDicomDict, 'x00283002', 0);
 
   if (numLUTEntries === 0) {
     numLUTEntries = 65535;
@@ -7,11 +9,11 @@ function getLUT(pixelRepresentation, lutDataSet) {
   let firstValueMapped = 0;
 
   if (pixelRepresentation === 0) {
-    firstValueMapped = lutDataSet.uint16('x00283002', 1);
+    firstValueMapped = getValue(lutDicomDict, 'x00283002', 1);
   } else {
-    firstValueMapped = lutDataSet.int16('x00283002', 1);
+    firstValueMapped = getValue(lutDicomDict, 'x00283002', 1);
   }
-  const numBitsPerEntry = lutDataSet.uint16('x00283002', 2);
+  const numBitsPerEntry = getValue(lutDicomDict, 'x00283002', 2);
   // console.log('LUT(', numLUTEntries, ',', firstValueMapped, ',', numBitsPerEntry, ')');
   const lut = {
     id: '1',
@@ -23,9 +25,9 @@ function getLUT(pixelRepresentation, lutDataSet) {
   // console.log("minValue=", minValue, "; maxValue=", maxValue);
   for (let i = 0; i < numLUTEntries; i++) {
     if (pixelRepresentation === 0) {
-      lut.lut[i] = lutDataSet.uint16('x00283006', i);
+      lut.lut[i] = getValue(lutDicomDict, 'x00283006', i);
     } else {
-      lut.lut[i] = lutDataSet.int16('x00283006', i);
+      lut.lut[i] = getValue(lutDicomDict, 'x00283006', i);
     }
   }
 
@@ -33,14 +35,14 @@ function getLUT(pixelRepresentation, lutDataSet) {
 }
 
 function getLUTs(pixelRepresentation, lutSequence) {
-  if (!lutSequence || !lutSequence.items || !lutSequence.items.length) {
+  if (!lutSequence || !lutSequence.items.length) {
     return;
   }
   const luts = [];
 
-  for (let i = 0; i < lutSequence.items.length; i++) {
-    const lutDataSet = lutSequence.items[i].dataSet;
-    const lut = getLUT(pixelRepresentation, lutDataSet);
+  for (let i = 0; i < lutSequence.length; i++) {
+    const lutDicomDict = lutSequence[i];
+    const lut = getLUT(pixelRepresentation, lutDicomDict);
 
     if (lut) {
       luts.push(lut);
