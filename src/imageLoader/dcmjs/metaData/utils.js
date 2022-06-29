@@ -47,13 +47,15 @@ function isValidDate(d, m, y) {
  */
 function parseDA(date, validate) {
   if (date && date.length === 8) {
-    var yyyy = parseInt(date.substring(0, 4), 10);
-    var mm = parseInt(date.substring(4, 6), 10);
-    var dd = parseInt(date.substring(6, 8), 10);
+    const yyyy = parseInt(date.substring(0, 4), 10);
+
+    const mm = parseInt(date.substring(4, 6), 10);
+
+    const dd = parseInt(date.substring(6, 8), 10);
 
     if (validate) {
       if (isValidDate(dd, mm, yyyy) !== true) {
-        throw `invalid DA '${date}'`;
+        throw Error(`invalid DA '${date}'`);
       }
     }
 
@@ -64,7 +66,7 @@ function parseDA(date, validate) {
     };
   }
   if (validate) {
-    throw `invalid DA '${date}'`;
+    throw Error(`invalid DA '${date}'`);
   }
 
   return undefined;
