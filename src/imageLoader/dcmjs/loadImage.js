@@ -25,6 +25,7 @@ async function _loadImage(imageId, options = {}, addDecache) {
       parsedImageId.url,
       imageId
     );
+
     const pixelData = getPixelData(dicomDict, parsedImageId.frame);
     const transferSyntax = getValue(dicomDict, '00020010');
     const loadEnd = new Date().getTime();

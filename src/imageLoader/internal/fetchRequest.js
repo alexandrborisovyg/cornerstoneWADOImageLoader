@@ -50,6 +50,8 @@ class FetchRequest {
       const headers = response.headers;
       const size = parseInt(headers.get('content-length'), 10);
 
+      debugger;
+
       this.onSize(size);
       this.size = size;
       this.arrayBuffer = new ArrayBuffer(size);
@@ -75,6 +77,8 @@ class FetchRequest {
 
         const { done, value } = await reader.read();
         const int8 = new Uint8Array(this.arrayBuffer);
+
+        debugger;
 
         int8.set(value, offset);
         offset += value.length;

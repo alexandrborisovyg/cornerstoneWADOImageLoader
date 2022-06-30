@@ -35,7 +35,7 @@ async function load(uri, imageId) {
   }
 
   // This uri is not loaded or being loaded, load it via an xhrRequest
-  loadedDataSets[uri] = FetchRequest(
+  loadedDataSets[uri] = new FetchRequest(
     uri,
     imageId,
     {},
