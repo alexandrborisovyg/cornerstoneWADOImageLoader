@@ -2,8 +2,8 @@
 import { getValue } from './utils.js';
 
 function getMinStoredPixelValue(dicomDict) {
-  const pixelRepresentation = getValue(dicomDict, 'x00280103');
-  const bitsStored = getValue(dicomDict, 'x00280101');
+  const pixelRepresentation = getValue(dicomDict, '00280103')[0];
+  const bitsStored = getValue(dicomDict, '00280101')[0];
 
   if (pixelRepresentation === 0) {
     return 0;
@@ -15,7 +15,7 @@ function getMinStoredPixelValue(dicomDict) {
 // 0 = unsigned / US, 1 = signed / SS
 function getModalityLUTOutputPixelRepresentation(dicomDict) {
   // CT SOP Classes are always signed
-  const sopClassUID = getValue(dicomDict, 'x00080016');
+  const sopClassUID = getValue(dicomDict, '00080016')[0];
 
   if (
     sopClassUID === '1.2.840.10008.5.1.4.1.1.2' ||
@@ -26,8 +26,8 @@ function getModalityLUTOutputPixelRepresentation(dicomDict) {
 
   // if rescale intercept and rescale slope are present, pass the minimum stored
   // pixel value through them to see if we get a signed output range
-  const rescaleIntercept = getValue(dicomDict, 'x00281052');
-  const rescaleSlope = getValue(dicomDict, 'x00281053');
+  const rescaleIntercept = getValue(dicomDict, '00281052')[0];
+  const rescaleSlope = getValue(dicomDict, '00281053')[0];
 
   if (rescaleIntercept !== undefined && rescaleSlope !== undefined) {
     const minStoredPixelValue = getMinStoredPixelValue(dicomDict); //
@@ -42,12 +42,12 @@ function getModalityLUTOutputPixelRepresentation(dicomDict) {
   }
 
   // Output of non linear modality lut is always unsigned
-  if (dicomDict.dict['00283000'] && dicomDict.dict['00283000'].length > 0) {
+  if (getValue(dicomDict, '00283000')) {
     return 0;
   }
 
   // If no modality lut transform, output is same as pixel representation
-  return getValue(dicomDict, 'x00280103');
+  return getValue(dicomDict, '00280103')[0];
 }
 
 export default getModalityLUTOutputPixelRepresentation;

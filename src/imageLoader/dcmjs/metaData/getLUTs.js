@@ -1,7 +1,7 @@
 import { getValue } from './utils.js';
 
 function getLUT(pixelRepresentation, lutDicomDict) {
-  let numLUTEntries = getValue(lutDicomDict, 'x00283002', 0);
+  let numLUTEntries = getValue(lutDicomDict, '00283002')[0];
 
   if (numLUTEntries === 0) {
     numLUTEntries = 65535;
@@ -9,12 +9,13 @@ function getLUT(pixelRepresentation, lutDicomDict) {
   let firstValueMapped = 0;
 
   if (pixelRepresentation === 0) {
-    firstValueMapped = getValue(lutDicomDict, 'x00283002', 1);
+    firstValueMapped = getValue(lutDicomDict, '00283002')[1];
   } else {
-    firstValueMapped = getValue(lutDicomDict, 'x00283002', 1);
+    debugger;
+    firstValueMapped = getValue(lutDicomDict, '00283002')[1];
   }
-  const numBitsPerEntry = getValue(lutDicomDict, 'x00283002', 2);
-  // console.log('LUT(', numLUTEntries, ',', firstValueMapped, ',', numBitsPerEntry, ')');
+  const numBitsPerEntry = getValue(lutDicomDict, '00283002')[2];
+
   const lut = {
     id: '1',
     firstValueMapped,
@@ -22,12 +23,12 @@ function getLUT(pixelRepresentation, lutDicomDict) {
     lut: [],
   };
 
-  // console.log("minValue=", minValue, "; maxValue=", maxValue);
   for (let i = 0; i < numLUTEntries; i++) {
     if (pixelRepresentation === 0) {
-      lut.lut[i] = getValue(lutDicomDict, 'x00283006', i);
+      lut.lut[i] = getValue(lutDicomDict, '00283006')[i];
     } else {
-      lut.lut[i] = getValue(lutDicomDict, 'x00283006', i);
+      debugger;
+      lut.lut[i] = getValue(lutDicomDict, '00283006')[i];
     }
   }
 
@@ -35,7 +36,7 @@ function getLUT(pixelRepresentation, lutDicomDict) {
 }
 
 function getLUTs(pixelRepresentation, lutSequence) {
-  if (!lutSequence || !lutSequence.items.length) {
+  if (!lutSequence || !lutSequence.length) {
     return;
   }
   const luts = [];

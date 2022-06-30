@@ -1,19 +1,21 @@
 import getEncapsulatedImageFrame from './getEncapsulatedImageFrame.js';
 import getUncompressedImageFrame from './getUncompressedImageFrame.js';
 
-function getPixelData(dataSet, frameIndex = 0) {
+function getPixelData(dicomDict, frameIndex = 0) {
   const pixelDataElement =
-    dataSet.elements.x7fe00010 || dataSet.elements.x7fe00008;
+    dicomDict.dict['7FE00010'] || dicomDict.dict['7FE00008'];
 
   if (!pixelDataElement) {
     return null;
   }
 
-  if (pixelDataElement.encapsulatedPixelData) {
-    return getEncapsulatedImageFrame(dataSet, frameIndex);
+  const isEncapsulated = pixelDataElement.Meta.length === 0xffffffff; // 4294967295
+
+  if (isEncapsulated) {
+    return getEncapsulatedImageFrame(dicomDict, frameIndex);
   }
 
-  return getUncompressedImageFrame(dataSet, frameIndex);
+  return getUncompressedImageFrame(dicomDict, frameIndex);
 }
 
 export default getPixelData;

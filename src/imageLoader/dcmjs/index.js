@@ -9,11 +9,7 @@ import {
 import dataSetCacheManager from './dataSetCacheManager.js';
 import getEncapsulatedImageFrame from './getEncapsulatedImageFrame.js';
 import getUncompressedImageFrame from './getUncompressedImageFrame.js';
-import {
-  loadImageFromPromise,
-  getLoaderForScheme,
-  loadImage,
-} from './loadImage.js';
+import { loadImage } from './loadImage.js';
 import parseImageId from './parseImageId.js';
 import unpackBinaryFrame from './unpackBinaryFrame.js';
 import register from './register.js';
@@ -31,8 +27,6 @@ export default {
   dataSetCacheManager,
   getEncapsulatedImageFrame,
   getUncompressedImageFrame,
-  loadImageFromPromise,
-  getLoaderForScheme,
   loadImage,
   parseImageId,
   unpackBinaryFrame,

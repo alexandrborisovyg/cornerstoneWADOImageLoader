@@ -1,17 +1,28 @@
-function getValue(dicomDict, tag, index) {
-  if (tag && tag[0] === 'x') {
-    tag = tag.substring(1);
-  }
-
-  const elements = dicomDict.dict;
-  const element = elements[tag];
-
-  index = index === undefined ? 0 : index;
-  if (element && element.length !== 0) {
-    return element[index];
+function getValue(dicomDict, tag) {
+  if (dicomDict.dict[tag] && dicomDict.dict[tag].Value.length !== 0) {
+    return dicomDict.dict[tag].Value;
   }
 
   return undefined;
+}
+
+function getNumberValues(dicomDict, tag, minimumLength) {
+  const values = [];
+  const valueAsString = getValue(dicomDict, tag);
+
+  if (!valueAsString) {
+    return;
+  }
+  const split = valueAsString.split('\\');
+
+  if (minimumLength && split.length < minimumLength) {
+    return;
+  }
+  for (let i = 0; i < split.length; i++) {
+    values.push(parseFloat(split[i]));
+  }
+
+  return values;
 }
 
 // algorithm based on http://stackoverflow.com/questions/1433030/validate-number-of-days-in-a-given-month
@@ -125,25 +136,6 @@ function parseTM(time, validate) {
   }
 
   return undefined;
-}
-
-function getNumberValues(dicomDict, tag, minimumLength) {
-  const values = [];
-  const valueAsString = getValue(dicomDict, tag);
-
-  if (!valueAsString) {
-    return;
-  }
-  const split = valueAsString.split('\\');
-
-  if (minimumLength && split.length < minimumLength) {
-    return;
-  }
-  for (let i = 0; i < split.length; i++) {
-    values.push(parseFloat(split[i]));
-  }
-
-  return values;
 }
 
 export { getValue, getNumberValues, parseDA, parseTM };

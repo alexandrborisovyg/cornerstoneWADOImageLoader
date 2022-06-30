@@ -23,27 +23,27 @@ function metaDataProvider(type, imageId) {
   // https://dicom.innolitics.com/
   if (type === 'generalSeriesModule') {
     return {
-      modality: getValue(dicomDict, 'x00080060'),
-      seriesInstanceUID: getValue(dicomDict, 'x0020000e'),
-      seriesNumber: getValue(dicomDict, 'x00200011'),
-      studyInstanceUID: getValue(dicomDict, 'x0020000d'),
-      seriesDate: parseDA(getValue(dicomDict, 'x00080021')),
-      seriesTime: parseTM(getValue(dicomDict, 'x00080031') || ''),
+      modality: getValue(dicomDict, '00080060')[0],
+      seriesInstanceUID: getValue(dicomDict, '0020000e')[0],
+      seriesNumber: getValue(dicomDict, '00200011')[0],
+      studyInstanceUID: getValue(dicomDict, '0020000d')[0],
+      seriesDate: parseDA(getValue(dicomDict, '00080021')[0]),
+      seriesTime: parseTM(getValue(dicomDict, '00080031')[0] || ''),
     };
   }
 
   if (type === 'patientStudyModule') {
     return {
-      patientAge: getValue(dicomDict, 'x00101010'),
-      patientSize: getValue(dicomDict, 'x00101020'),
-      patientWeight: getValue(dicomDict, 'x00101030'),
+      patientAge: getValue(dicomDict, '00101010')[0],
+      patientSize: getValue(dicomDict, '00101020')[0],
+      patientWeight: getValue(dicomDict, '00101030')[0],
     };
   }
 
   if (type === 'imagePlaneModule') {
-    const imageOrientationPatient = getNumberValues(dicomDict, 'x00200037', 6);
-    const imagePositionPatient = getNumberValues(dicomDict, 'x00200032', 3);
-    const pixelSpacing = getNumberValues(dicomDict, 'x00280030', 2);
+    const imageOrientationPatient = getNumberValues(dicomDict, '00200037')[6];
+    const imagePositionPatient = getNumberValues(dicomDict, '00200032')[3];
+    const pixelSpacing = getNumberValues(dicomDict, '00280030')[2];
 
     let columnPixelSpacing = null;
 
@@ -72,15 +72,15 @@ function metaDataProvider(type, imageId) {
     }
 
     return {
-      frameOfReferenceUID: getValue(dicomDict, 'x00200052'),
-      rows: getValue(dicomDict, 'x00280010'),
-      columns: getValue(dicomDict, 'x00280011'),
+      frameOfReferenceUID: getValue(dicomDict, '00200052')[0],
+      rows: getValue(dicomDict, '00280010')[0],
+      columns: getValue(dicomDict, '00280011')[0],
       imageOrientationPatient,
       rowCosines,
       columnCosines,
       imagePositionPatient,
-      sliceThickness: getValue(dicomDict, 'x00180050'),
-      sliceLocation: getValue(dicomDict, 'x00201041'),
+      sliceThickness: getValue(dicomDict, '00180050')[0],
+      sliceLocation: getValue(dicomDict, '00201041')[0],
       pixelSpacing,
       rowPixelSpacing,
       columnPixelSpacing,
@@ -93,12 +93,12 @@ function metaDataProvider(type, imageId) {
 
   if (type === 'modalityLutModule') {
     return {
-      rescaleIntercept: getValue(dicomDict, 'x00281052'),
-      rescaleSlope: getValue(dicomDict, 'x00281053'),
-      rescaleType: getValue(dicomDict, 'x00281054'),
+      rescaleIntercept: getValue(dicomDict, '00281052')[0],
+      rescaleSlope: getValue(dicomDict, '00281053')[0],
+      rescaleType: getValue(dicomDict, '00281054')[0],
       modalityLUTSequence: getLUTs(
-        getValue(dicomDict, 'x00280103'),
-        dicomDict.dict['00283000']
+        getValue(dicomDict, '00280103')[0],
+        getValue(dicomDict, '00283000')
       ),
     };
   }
@@ -108,24 +108,24 @@ function metaDataProvider(type, imageId) {
       getModalityLUTOutputPixelRepresentation(dicomDict);
 
     return {
-      windowCenter: getNumberValues(dicomDict, 'x00281050', 1),
-      windowWidth: getNumberValues(dicomDict, 'x00281051', 1),
+      windowCenter: getNumberValues(dicomDict, '00281050')[1],
+      windowWidth: getNumberValues(dicomDict, '00281051')[1],
       voiLUTSequence: getLUTs(
         modalityLUTOutputPixelRepresentation,
-        dicomDict.dict['00283010']
+        getValue(dicomDict, '00283010')
       ),
     };
   }
 
   if (type === 'sopCommonModule') {
     return {
-      sopClassUID: getValue(dicomDict, 'x00080016'),
-      sopInstanceUID: getValue(dicomDict, 'x00080018'),
+      sopClassUID: getValue(dicomDict, '00080016')[0],
+      sopInstanceUID: getValue(dicomDict, '00080018')[0],
     };
   }
 
   if (type === 'petIsotopeModule') {
-    const radiopharmaceuticalInfo = dicomDict.dict['00540016'];
+    const radiopharmaceuticalInfo = getValue(dicomDict, '00540016');
 
     if (radiopharmaceuticalInfo === undefined) {
       return;
@@ -136,16 +136,16 @@ function metaDataProvider(type, imageId) {
     return {
       radiopharmaceuticalInfo: {
         radiopharmaceuticalStartTime: parseTM(
-          getValue(firstRadiopharmaceuticalInfoDataSet, 'x00181072') || ''
+          getValue(firstRadiopharmaceuticalInfoDataSet, '00181072')[0] || ''
         ),
         radionuclideTotalDose: getValue(
           firstRadiopharmaceuticalInfoDataSet,
-          'x00181074'
-        ),
+          '00181074'
+        )[0],
         radionuclideHalfLife: getValue(
           firstRadiopharmaceuticalInfoDataSet,
-          'x00181075'
-        ),
+          '00181075'
+        )[0],
       },
     };
   }

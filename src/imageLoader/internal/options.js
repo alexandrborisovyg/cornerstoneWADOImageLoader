@@ -3,7 +3,11 @@ let options = {
   beforeSend(/* xhr, imageId */) {},
   // callback allowing modification of the xhr response before creating image objects
   beforeProcessing(xhr) {
-    return Promise.resolve(xhr.response);
+    if (xhr) {
+      return Promise.resolve(xhr.response);
+    }
+
+    return Promise.resolve();
   },
   // callback allowing modification of newly created image objects
   imageCreated(/* image */) {},

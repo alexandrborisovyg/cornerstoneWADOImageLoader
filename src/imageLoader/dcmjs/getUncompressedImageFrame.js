@@ -1,17 +1,19 @@
 import unpackBinaryFrame from './unpackBinaryFrame.js';
-
+import { getValue } from './metaData/utils.js';
 /**
  * Function to deal with extracting an image frame from an encapsulated data set.
  */
 
-function getUncompressedImageFrame(dataSet, frameIndex) {
+function getUncompressedImageFrame(dicomDict, frameIndex) {
   const pixelDataElement =
-    dataSet.elements.x7fe00010 || dataSet.elements.x7fe00008;
-  const bitsAllocated = dataSet.uint16('x00280100');
-  const rows = dataSet.uint16('x00280010');
-  const columns = dataSet.uint16('x00280011');
+    dicomDict.dict['7FE00010'] || dicomDict.dict['7FE00008'];
 
-  let samplesPerPixel = dataSet.uint16('x00280002');
+  const pixelArrayBuffer = pixelDataElement.Value[0];
+  const bitsAllocated = getValue(dicomDict, '00280100')[0];
+  const rows = getValue(dicomDict, '00280010')[0];
+  const columns = getValue(dicomDict, '00280011')[0];
+
+  let samplesPerPixel = getValue(dicomDict, '00280002')[0];
 
   /**
    * From: http://dicom.nema.org/medical/dicom/current/output/chtml/part03/sect_C.7.6.3.html
@@ -31,7 +33,7 @@ function getUncompressedImageFrame(dataSet, frameIndex) {
    *
    * padded to an even length.
    */
-  const photometricInterpretation = dataSet.string('x00280004');
+  const photometricInterpretation = getValue(dicomDict, '00280004')[0];
 
   if (photometricInterpretation === 'YBR_FULL_422') {
     samplesPerPixel = 2;
@@ -41,50 +43,44 @@ function getUncompressedImageFrame(dataSet, frameIndex) {
     );
   }
 
-  const pixelDataOffset = pixelDataElement.dataOffset;
+  const pixelDataOffset = 0;
   const pixelsPerFrame = rows * columns * samplesPerPixel;
 
   let frameOffset;
 
   if (bitsAllocated === 8) {
     frameOffset = pixelDataOffset + frameIndex * pixelsPerFrame;
-    if (frameOffset >= dataSet.byteArray.length) {
+    if (frameOffset >= pixelArrayBuffer.length) {
       throw new Error('frame exceeds size of pixelData');
     }
 
     return new Uint8Array(
-      dataSet.byteArray.buffer.slice(frameOffset, frameOffset + pixelsPerFrame)
+      pixelArrayBuffer.slice(frameOffset, frameOffset + pixelsPerFrame)
     );
   } else if (bitsAllocated === 16) {
     frameOffset = pixelDataOffset + frameIndex * pixelsPerFrame * 2;
-    if (frameOffset >= dataSet.byteArray.length) {
+    if (frameOffset >= pixelArrayBuffer.length) {
       throw new Error('frame exceeds size of pixelData');
     }
 
     return new Uint8Array(
-      dataSet.byteArray.buffer.slice(
-        frameOffset,
-        frameOffset + pixelsPerFrame * 2
-      )
+      pixelArrayBuffer.slice(frameOffset, frameOffset + pixelsPerFrame * 2)
     );
   } else if (bitsAllocated === 1) {
     frameOffset = pixelDataOffset + frameIndex * pixelsPerFrame * 0.125;
-    if (frameOffset >= dataSet.byteArray.length) {
+    if (frameOffset >= pixelArrayBuffer.length) {
       throw new Error('frame exceeds size of pixelData');
     }
 
-    return unpackBinaryFrame(dataSet.byteArray, frameOffset, pixelsPerFrame);
+    return unpackBinaryFrame(pixelArrayBuffer, frameOffset, pixelsPerFrame);
   } else if (bitsAllocated === 32) {
     frameOffset = pixelDataOffset + frameIndex * pixelsPerFrame * 4;
-    if (frameOffset >= dataSet.byteArray.length) {
+    if (frameOffset >= pixelArrayBuffer.length) {
       throw new Error('frame exceeds size of pixelData');
     }
 
     return new Uint8Array(
-      dataSet.byteArray.buffer.slice(
-        frameOffset,
-        frameOffset + pixelsPerFrame * 4
-      )
+      pixelArrayBuffer.slice(frameOffset, frameOffset + pixelsPerFrame * 4)
     );
   }
 
