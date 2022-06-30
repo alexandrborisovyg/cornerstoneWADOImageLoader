@@ -75,7 +75,6 @@ describe('loadImage dcmjs', function () {
           // TODO: Compare against known correct pixel data
           expect(image).to.be.an('object');
           debugger;
-
           done();
         },
         (error) => {

@@ -2,6 +2,7 @@ import getEncapsulatedImageFrame from './getEncapsulatedImageFrame.js';
 import getUncompressedImageFrame from './getUncompressedImageFrame.js';
 
 function getPixelData(dicomDict, frameIndex = 0) {
+  debugger;
   const pixelDataElement =
     dicomDict.dict['7FE00010'] || dicomDict.dict['7FE00008'];
 

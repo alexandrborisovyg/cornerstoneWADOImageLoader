@@ -15,121 +15,131 @@ class FetchRequest {
     this.defaultHeaders = defaultHeaders;
     this.params = params;
     this.cacheCount = 1;
-    this.dicomDict = this.fetchDicomDict();
     this.onSize = onSize;
     this.onParsed = onParsed;
+    this.chunks = [];
+    this.options = getOptions() || {};
+    this.dicomDict = this.fetchDicomDict();
+  }
+
+  static errorInterceptor(err) {
+    if (typeof this.options.errorInterceptor === 'function') {
+      this.options.errorInterceptor(err);
+      throw new Error(err);
+    }
+  }
+
+  async onloadstart() {
+    const { cornerstone } = external;
+
+    // Onload Start Event
+    if (this.options.onloadstart) {
+      await this.options.onloadstart(this.params);
+    }
+    cornerstone.triggerEvent(cornerstone.events, 'cornerstoneimageloadstart', {
+      url: this.url,
+      imageId: this.imageId,
+    });
+  }
+
+  async onloadend() {
+    const { cornerstone } = external;
+
+    if (this.options.onloadend) {
+      await this.options.onloadend(this.params);
+    }
+    cornerstone.triggerEvent(cornerstone.events, 'cornerstoneimageloadend', {
+      url: this.url,
+      imageId: this.imageId,
+    });
+
+    await this.options.beforeProcessing();
+  }
+
+  async onprogress() {
+    const { cornerstone } = external;
+    const percentComplete = Math.round((this.size / this.total) * 100);
+
+    if (this.options.onprogress) {
+      await this.options.onprogress(this.params);
+    }
+    cornerstone.triggerEvent(
+      cornerstone.events,
+      cornerstone.EVENTS.IMAGE_LOAD_PROGRESS,
+      {
+        url: this.url,
+        imageId: this.imageId,
+        loaded: this.size,
+        total: this.total,
+        percentComplete,
+      }
+    );
   }
 
   async fetchDicomDict() {
-    const { cornerstone, dcmjs } = external;
-    const options = getOptions();
-
-    const errorInterceptor = (err) => {
-      if (typeof options.errorInterceptor === 'function') {
-        options.errorInterceptor(err);
-        throw new Error(err);
-      }
-    };
-
-    const beforeSendHeaders = await options.beforeSend(
-      this.url,
-      this.imageId,
-      this.defaultHeaders,
-      this.params
-    );
+    const { dcmjs } = external;
 
     try {
+      const beforeSendHeaders = await this.options.beforeSend(
+        this.url,
+        this.imageId,
+        this.defaultHeaders,
+        this.params
+      );
+
       const response = await fetch(this.url, {
-        headers: Object.assign({}, this.defaultHeaders, beforeSendHeaders),
+        headers: {
+          ...this.defaultHeaders,
+          ...beforeSendHeaders,
+        },
       });
 
       if (!response.ok) {
-        return errorInterceptor(response.json());
+        return this.errorInterceptor(response.json());
       }
 
-      const headers = response.headers;
-      const size = parseInt(headers.get('content-length'), 10);
-
-      debugger;
-
-      this.onSize(size);
-      this.size = size;
-      this.arrayBuffer = new ArrayBuffer(size);
-      const reader = response.body.getReader();
-
-      this.reader = reader;
-
-      let offset = 0;
-
+      this.total =
+        parseInt(response.headers.get('content-length'), 10) || undefined;
+      this.reader = response.body.getReader();
+      await this.onloadstart();
       for (;;) {
-        if (options.onloadstart) {
-          await options.onloadstart(this.params);
-        }
-        // Event
-        cornerstone.triggerEvent(
-          cornerstone.events,
-          'cornerstoneimageloadstart',
-          {
-            url: this.url,
-            imageId: this.imageId,
-          }
-        );
+        const { done, value } = await this.reader.read();
 
-        const { done, value } = await reader.read();
-        const int8 = new Uint8Array(this.arrayBuffer);
-
-        debugger;
-
-        int8.set(value, offset);
-        offset += value.length;
-
-        const percentComplete = Math.round((offset / size) * 100);
-
-        // Action
-        if (options.onprogress) {
-          await options.onprogress(this.params);
-        }
-
-        // Event
-        cornerstone.triggerEvent(
-          cornerstone.events,
-          cornerstone.EVENTS.IMAGE_LOAD_PROGRESS,
-          {
-            url: this.url,
-            imageId: this.imageId,
-            offset,
-            size,
-            percentComplete,
-          }
-        );
         if (done) {
-          // Action
-          if (options.onloadend) {
-            await options.onloadend(this.params);
-          }
-
-          // Event
-          cornerstone.triggerEvent(
-            cornerstone.events,
-            'cornerstoneimageloadend',
-            {
-              url: this.url,
-              imageId: this.imageId,
-            }
+          await this.onloadend();
+          const dicomDict = dcmjs.data.DicomMessage.readFile(
+            FetchRequest.getArrayBuffer(this.chunks, this.size)
           );
 
-          await options.beforeProcessing();
-
-          const dicomDict = dcmjs.data.DicomMessage.readFile(this.arrayBuffer);
-
-          this.onParsed();
+          await this.onParsed();
 
           return dicomDict;
         }
+
+        this.chunks.push(value);
+        await this.onprogress();
       }
     } catch (err) {
-      return errorInterceptor(err);
+      return this.errorInterceptor(err);
     }
+  }
+
+  get size() {
+    return this.chunks.reduce((sum, curr) => sum + curr.length, 0);
+  }
+
+  static getArrayBuffer(chunks, size) {
+    const result = new Uint8Array(size);
+
+    // Build the new array
+    let offset = 0;
+
+    for (const arr of chunks) {
+      result.set(arr, offset);
+      offset += arr.length;
+    }
+
+    return result.buffer;
   }
 
   cancel() {
