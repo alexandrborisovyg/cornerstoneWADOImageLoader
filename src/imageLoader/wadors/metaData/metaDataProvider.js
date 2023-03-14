@@ -1,12 +1,53 @@
 import external from '../../../externalModules.js';
 import getNumberValues from './getNumberValues.js';
-import getValue from './getValue.js';
 import getNumberValue from './getNumberValue.js';
 import getOverlayPlaneModule from './getOverlayPlaneModule.js';
 import metaDataManager from '../metaDataManager.js';
+import getValue from './getValue.js';
+//import fixNMMetadata from './fixNMMetadata.js';
+import {
+  getMultiframeInformation,
+  getFrameInformation,
+} from '../combineFrameInstance.js';
+import multiframeMetadata from '../retrieveMultiframeMetadata.js';
 
 function metaDataProvider(type, imageId) {
+  if (type === 'multiframeModule') {
+    // the get function removes the PerFrameFunctionalGroupsSequence
+    const { metadata, frame } =
+      multiframeMetadata.retrieveMultiframeMetadata(imageId);
+
+    if (!metadata) {
+      return;
+    }
+    const {
+      PerFrameFunctionalGroupsSequence,
+      SharedFunctionalGroupsSequence,
+      NumberOfFrames,
+    } = getMultiframeInformation(metadata);
+
+    if (PerFrameFunctionalGroupsSequence || NumberOfFrames > 1) {
+      const { shared, perFrame } = getFrameInformation(
+        PerFrameFunctionalGroupsSequence,
+        SharedFunctionalGroupsSequence,
+        frame
+      );
+
+      return {
+        NumberOfFrames,
+        //PerFrameFunctionalGroupsSequence,
+        PerFrameFunctionalInformation: perFrame,
+        SharedFunctionalInformation: shared,
+      };
+    }
+
+    return {
+      NumberOfFrames,
+      //PerFrameFunctionalGroupsSequence,
+    };
+  }
   const { dicomParser } = external;
+
   const metaData = metaDataManager.get(imageId);
 
   if (!metaData) {
@@ -21,6 +62,10 @@ function metaDataProvider(type, imageId) {
       studyInstanceUID: getValue(metaData['0020000D']),
       seriesDate: dicomParser.parseDA(getValue(metaData['00080021'])),
       seriesTime: dicomParser.parseTM(getValue(metaData['00080031'], 0, '')),
+      acquisitionDate: dicomParser.parseDA(getValue(metaData['00080022']), ''),
+      acquisitionTime: dicomParser.parseTM(
+        getValue(metaData['00080032'], 0, '')
+      ),
     };
   }
 
@@ -28,11 +73,13 @@ function metaDataProvider(type, imageId) {
     return {
       patientAge: getNumberValue(metaData['00101010']),
       patientSize: getNumberValue(metaData['00101020']),
+      patientSex: getValue(metaData['00100040']),
       patientWeight: getNumberValue(metaData['00101030']),
     };
   }
 
   if (type === 'imagePlaneModule') {
+    //metaData = fixNMMetadata(metaData);
     const imageOrientationPatient = getNumberValues(metaData['00200037'], 6);
     const imagePositionPatient = getNumberValues(metaData['00200032'], 3);
     const pixelSpacing = getNumberValues(metaData['00280030'], 2);
@@ -144,6 +191,11 @@ function metaDataProvider(type, imageId) {
         radiopharmaceuticalStartTime: dicomParser.parseTM(
           getValue(radiopharmaceuticalInfo['00181072'], 0, '')
         ),
+        radiopharmaceuticalStartDateTime: getValue(
+          radiopharmaceuticalInfo['00181078'],
+          0,
+          ''
+        ),
         radionuclideTotalDose: getNumberValue(
           radiopharmaceuticalInfo['00181074']
         ),
@@ -163,6 +215,21 @@ function metaDataProvider(type, imageId) {
   if (type === 'transferSyntax') {
     return {
       transferSyntaxUID: getValue(metaData['00020010']),
+    };
+  }
+
+  if (type === 'petSeriesModule') {
+    return {
+      correctedImage: getValue(metaData['00280051']),
+      units: getValue(metaData['00541001']),
+      decayCorrection: getValue(metaData['00541102']),
+    };
+  }
+
+  if (type === 'petImageModule') {
+    return {
+      frameReferenceTime: getNumberValue(metaData['00541300']),
+      actualFrameDuration: getNumberValue(metaData['00181242']),
     };
   }
 }

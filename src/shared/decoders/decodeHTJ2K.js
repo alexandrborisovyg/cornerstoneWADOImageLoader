@@ -1,12 +1,13 @@
 // https://emscripten.org/docs/api_reference/module.html
-import openJpegFactory from '@cornerstonejs/codec-openjpeg/decodewasmjs';
+//import openJphFactory from '@cornerstonejs/codec-openjph';
 
 // Webpack asset/resource copies this to our output folder
+//import openjphWasm from '@cornerstonejs/codec-openjph/wasm';
+// import openJphFactory from '../../../codecs/openjphjs.js';
+// import openjphWasm from '../../../codecs/openjphjs.wasm';
 
-// TODO: At some point maybe we can use this instead.
-// This is closer to what Webpack 5 wants but it doesn't seem to work now
-// const wasm = new URL('./blah.wasm', import.meta.url)
-import openjpegWasm from '@cornerstonejs/codec-openjpeg/decodewasm';
+import openJphFactory from '@cornerstonejs/codec-openjph/wasmjs';
+import openjphWasm from '@cornerstonejs/codec-openjph/wasm';
 
 const local = {
   codec: undefined,
@@ -21,10 +22,10 @@ export function initialize(decodeConfig) {
     return Promise.resolve();
   }
 
-  const openJpegModule = openJpegFactory({
+  const openJphModule = openJphFactory({
     locateFile: (f) => {
       if (f.endsWith('.wasm')) {
-        return openjpegWasm;
+        return openjphWasm;
       }
 
       return f;
@@ -32,9 +33,9 @@ export function initialize(decodeConfig) {
   });
 
   return new Promise((resolve, reject) => {
-    openJpegModule.then((instance) => {
+    openJphModule.then((instance) => {
       local.codec = instance;
-      local.decoder = new instance.J2KDecoder();
+      local.decoder = new instance.HTJ2KDecoder();
       resolve();
     }, reject);
   });
@@ -85,7 +86,7 @@ async function decodeAsync(compressedImageFrame, imageInfo) {
   const tileOffset = `${decoder.getTileOffset().x}, ${
     decoder.getTileOffset().y
   }`;
-  const colorTransform = decoder.getColorSpace();
+  // const colorTransform = decoder.getColorSpace();
 
   const decodedSize = `${decodedBufferInWASM.length.toLocaleString()} bytes`;
   const compressionRatio = `${(
@@ -100,7 +101,18 @@ async function decodeAsync(compressedImageFrame, imageInfo) {
     bytesPerPixel: imageInfo.bytesPerPixel,
     componentsPerPixel: frameInfo.componentCount,
   };
-  const pixelData = getPixelData(frameInfo, decodedBufferInWASM);
+  // const pixelData = getPixelData(frameInfo, decodedBufferInWASM);
+
+  /**
+   * Have to truncate the arraybuffer here to the length of the typed array. Not
+   * sure why the arraybuffer is so huge, maybe this is allocated by the WASM
+   * module? In any case, I think it's too big to postMessage in it's entirety.
+   */
+  let pixelData = getPixelData(frameInfo, decodedBufferInWASM);
+  const { buffer: b, byteOffset, byteLength } = pixelData;
+  const pixelDataArrayBuffer = b.slice(byteOffset, byteOffset + byteLength);
+
+  pixelData = new pixelData.constructor(pixelDataArrayBuffer);
 
   const encodeOptions = {
     imageOffset,
@@ -111,7 +123,7 @@ async function decodeAsync(compressedImageFrame, imageInfo) {
     blockDimensions,
     tileSize,
     tileOffset,
-    colorTransform,
+    // colorTransform,
     decodedSize,
     compressionRatio,
   };

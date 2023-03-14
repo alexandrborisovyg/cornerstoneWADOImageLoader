@@ -54,11 +54,17 @@ function convertToIntPixelData(floatPixelData) {
  * can transfer array buffers but not typed arrays
  * @param imageFrame
  */
-function setPixelDataType(imageFrame) {
+function setPixelDataType(imageFrame, preScale) {
+  const isScaled = preScale?.scaled;
+  const scalingParmeters = preScale?.scalingParameters;
+  const rescaleSlope = scalingParmeters?.rescaleSlope;
+  const rescaleIntercept = scalingParmeters?.rescaleIntercept;
+  const isNegative = rescaleSlope < 0 || rescaleIntercept < 0;
+
   if (imageFrame.bitsAllocated === 32) {
     imageFrame.pixelData = new Float32Array(imageFrame.pixelData);
   } else if (imageFrame.bitsAllocated === 16) {
-    if (imageFrame.pixelRepresentation === 0) {
+    if (imageFrame.pixelRepresentation === 0 && !(isScaled && isNegative)) {
       imageFrame.pixelData = new Uint16Array(imageFrame.pixelData);
     } else {
       imageFrame.pixelData = new Int16Array(imageFrame.pixelData);
@@ -133,20 +139,29 @@ function createImage(imageId, pixelData, transferSyntax, options = {}) {
       };
     }
   }
+
+  const { decodeConfig } = getOptions();
+
   const decodePromise = decodeImageFrame(
     imageFrame,
     transferSyntax,
     pixelData,
     canvas,
-    options
+    options,
+    decodeConfig
   );
 
-  const { decodeConfig } = getOptions();
-  const { convertFloatPixelDataToInt } = decodeConfig;
+  const { convertFloatPixelDataToInt, use16BitDataType } = decodeConfig;
 
   return new Promise((resolve, reject) => {
     // eslint-disable-next-line complexity
     decodePromise.then(function (imageFrame) {
+      // if it is desired to skip creating image, return the imageFrame
+      // after the decode. This might be useful for some applications
+      // that only need the decoded pixel data and not the image object
+      if (options.skipCreateImage) {
+        return resolve(imageFrame);
+      }
       // If we have a target buffer that was written to in the
       // Decode task, point the image to it here.
       // We can't have done it within the thread incase it was a SharedArrayBuffer.
@@ -173,8 +188,11 @@ function createImage(imageId, pixelData, transferSyntax, options = {}) {
           case 'Uint8Array':
             TypedArrayConstructor = Uint8Array;
             break;
-          case 'Uint16Array':
+          case use16BitDataType && 'Uint16Array':
             TypedArrayConstructor = Uint16Array;
+            break;
+          case use16BitDataType && 'Int16Array':
+            TypedArrayConstructor = Int16Array;
             break;
           case 'Float32Array':
             TypedArrayConstructor = Float32Array;
@@ -207,7 +225,7 @@ function createImage(imageId, pixelData, transferSyntax, options = {}) {
       }
 
       if (!alreadyTyped) {
-        setPixelDataType(imageFrame);
+        setPixelDataType(imageFrame, imageFrame.preScale);
       }
 
       const imagePlaneModule =
@@ -240,40 +258,38 @@ function createImage(imageId, pixelData, transferSyntax, options = {}) {
             imageFrame.imageData = imageData;
             imageFrame.pixelData = imageData.data;
           }
-        } else {
-          if (isJPEGBaseline8BitColor(imageFrame, transferSyntax)) {
-            // If we don't need the RGBA but the decoding is done with RGBA (the case
-            // for JPEG Baseline 8 bit color), AND the option specifies to use RGB (no RGBA)
-            // we need to remove the A channel from pixel data
-            const colorBuffer = new Uint8ClampedArray(
-              (imageFrame.pixelData.length / 4) * 3
-            );
+        } else if (isJPEGBaseline8BitColor(imageFrame, transferSyntax)) {
+          // If we don't need the RGBA but the decoding is done with RGBA (the case
+          // for JPEG Baseline 8 bit color), AND the option specifies to use RGB (no RGBA)
+          // we need to remove the A channel from pixel data
+          const colorBuffer = new Uint8ClampedArray(
+            (imageFrame.pixelData.length / 4) * 3
+          );
 
-            // remove the A from the RGBA of the imageFrame
-            imageFrame.pixelData = removeAFromRGBA(
-              imageFrame.pixelData,
-              colorBuffer
-            );
-          } else if (imageFrame.photometricInterpretation === 'PALETTE COLOR') {
-            canvas.height = imageFrame.rows;
-            canvas.width = imageFrame.columns;
+          // remove the A from the RGBA of the imageFrame
+          imageFrame.pixelData = removeAFromRGBA(
+            imageFrame.pixelData,
+            colorBuffer
+          );
+        } else if (imageFrame.photometricInterpretation === 'PALETTE COLOR') {
+          canvas.height = imageFrame.rows;
+          canvas.width = imageFrame.columns;
 
-            const context = canvas.getContext('2d');
+          const context = canvas.getContext('2d');
 
-            const imageData = context.createImageData(
-              imageFrame.columns,
-              imageFrame.rows
-            );
+          const imageData = context.createImageData(
+            imageFrame.columns,
+            imageFrame.rows
+          );
 
-            convertColorSpace(imageFrame, imageData.data, true);
+          convertColorSpace(imageFrame, imageData.data, true);
 
-            const colorBuffer = new imageData.data.constructor(
-              (imageData.data.length / 4) * 3
-            );
+          const colorBuffer = new imageData.data.constructor(
+            (imageData.data.length / 4) * 3
+          );
 
-            // remove the A from the RGBA of the imageFrame
-            imageFrame.pixelData = removeAFromRGBA(imageData.data, colorBuffer);
-          }
+          // remove the A from the RGBA of the imageFrame
+          imageFrame.pixelData = removeAFromRGBA(imageData.data, colorBuffer);
         }
 
         // calculate smallest and largest PixelValue of the converted pixelData
@@ -308,6 +324,9 @@ function createImage(imageId, pixelData, transferSyntax, options = {}) {
           : undefined,
         windowWidth: voiLutModule.windowWidth
           ? voiLutModule.windowWidth[0]
+          : undefined,
+        voiLUTFunction: voiLutModule.voiLUTFunction
+          ? voiLutModule.voiLUTFunction
           : undefined,
         decodeTimeInMS: imageFrame.decodeTimeInMS,
         floatPixelData: undefined,
