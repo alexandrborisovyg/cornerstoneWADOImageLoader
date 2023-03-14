@@ -8,9 +8,15 @@ import decodeJPEGBaseline12Bit from './decoders/decodeJPEGBaseline12Bit-js.js';
 import decodeJPEGLossless from './decoders/decodeJPEGLossless.js';
 import decodeJPEGLS from './decoders/decodeJPEGLS.js';
 import decodeJPEG2000 from './decoders/decodeJPEG2000.js';
+import decodeHTJ2K from './decoders/decodeHTJ2K.js';
 import scaleArray from './scaling/scaleArray.js';
 
-function decodeImageFrame(
+/**
+ * Decodes the provided image frame.
+ * This is an async function return the result, or you can provide an optional
+ * callbackFn that is called with the results.
+ */
+async function decodeImageFrame(
   imageFrame,
   transferSyntax,
   pixelData,
@@ -26,11 +32,8 @@ function decodeImageFrame(
 
   switch (transferSyntax) {
     case '1.2.840.10008.1.2':
-      // Implicit VR Little Endian
-      decodePromise = decodeLittleEndian(imageFrame, pixelData);
-      break;
     case '1.2.840.10008.1.2.1':
-      // Explicit VR Little Endian
+      // Implicit or Explicit VR Little Endian
       decodePromise = decodeLittleEndian(imageFrame, pixelData);
       break;
     case '1.2.840.10008.1.2.2':
@@ -111,6 +114,14 @@ function decodeImageFrame(
       // imageFrame, pixelData, decodeConfig, options
       decodePromise = decodeJPEG2000(pixelData, opts);
       break;
+    case '3.2.840.10008.1.2.4.96':
+      // HTJ2K
+      opts = {
+        ...imageFrame,
+      };
+
+      decodePromise = decodeHTJ2K(pixelData, opts);
+      break;
     default:
       throw new Error(`no decoder for transfer syntax ${transferSyntax}`);
   }
@@ -132,16 +143,24 @@ function decodeImageFrame(
     throw new Error('decodePromise not defined');
   }
 
-  decodePromise
-    .then((imageFrame) => {
-      callbackFn(postProcessDecodedPixels(imageFrame, options, start));
-    })
-    .catch((err) => {
-      throw err;
-    });
+  const decodedFrame = await decodePromise;
+
+  const postProcessed = postProcessDecodedPixels(
+    decodedFrame,
+    options,
+    start,
+    decodeConfig
+  );
+
+  // Call the callbackFn to agree with older arguments
+  callbackFn?.(postProcessed);
+
+  return postProcessed;
 }
 
-function postProcessDecodedPixels(imageFrame, options, start) {
+function postProcessDecodedPixels(imageFrame, options, start, decodeConfig) {
+  const { use16BitDataType } = decodeConfig || {};
+
   const shouldShift =
     imageFrame.pixelRepresentation !== undefined &&
     imageFrame.pixelRepresentation === 1;
@@ -185,8 +204,11 @@ function postProcessDecodedPixels(imageFrame, options, start) {
       case 'Uint8Array':
         TypedArrayConstructor = Uint8Array;
         break;
-      case 'Uint16Array':
+      case use16BitDataType && 'Uint16Array':
         TypedArrayConstructor = Uint16Array;
+        break;
+      case use16BitDataType && 'Int16Array':
+        TypedArrayConstructor = Int16Array;
         break;
       case 'Float32Array':
         TypedArrayConstructor = Float32Array;
@@ -199,7 +221,7 @@ function postProcessDecodedPixels(imageFrame, options, start) {
 
     if (length !== imageFramePixelData.length) {
       throw new Error(
-        'target array for image does not have the same length as the decoded image length.'
+        `target array for image does not have the same length (${length}) as the decoded image length (${imageFramePixelData.length}).`
       );
     }
 
