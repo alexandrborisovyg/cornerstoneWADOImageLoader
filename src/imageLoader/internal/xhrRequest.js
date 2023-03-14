@@ -116,39 +116,42 @@ function xhrRequest(url, imageId, defaultHeaders = {}, params = {}) {
     };
 
     // Event triggered when downloading an image progresses
-    xhr.onprogress = function (oProgress) {
-      // console.log('progress:',oProgress)
-      const loaded = oProgress.loaded; // evt.loaded the bytes browser receive
+    /**
+     * It is commented out to escape console errors
+     */
+    // xhr.onprogress = function (oProgress) {
+    //   // console.log('progress:',oProgress)
+    //   const loaded = oProgress.loaded; // evt.loaded the bytes browser receive
 
-      let total;
+    //   let total;
 
-      let percentComplete;
+    //   let percentComplete;
 
-      if (oProgress.lengthComputable) {
-        total = oProgress.total; // evt.total the total bytes seted by the header
-        percentComplete = Math.round((loaded / total) * 100);
-      }
+    //   if (oProgress.lengthComputable) {
+    //     total = oProgress.total; // evt.total the total bytes seted by the header
+    //     percentComplete = Math.round((loaded / total) * 100);
+    //   }
 
-      // Action
-      if (options.onprogress) {
-        options.onprogress(oProgress, params);
-      }
+    //   // Action
+    //   if (options.onprogress) {
+    //     options.onprogress(oProgress, params);
+    //   }
 
-      // Event
-      const eventData = {
-        url,
-        imageId,
-        loaded,
-        total,
-        percentComplete,
-      };
+    //   // Event
+    //   const eventData = {
+    //     url,
+    //     imageId,
+    //     loaded,
+    //     total,
+    //     percentComplete,
+    //   };
 
-      cornerstone.triggerEvent(
-        cornerstone.events,
-        cornerstone.EVENTS.IMAGE_LOAD_PROGRESS,
-        eventData
-      );
-    };
+    //   cornerstone.triggerEvent(
+    //     cornerstone.events,
+    //     cornerstone.EVENTS.IMAGE_LOAD_PROGRESS,
+    //     eventData
+    //   );
+    // };
     xhr.onerror = function () {
       errorInterceptor(xhr);
       reject(xhr);
